@@ -1,14 +1,13 @@
 import pandas as pd
 import eda
 import modelling as md
-from sklearn.metrics import mean_absolute_percentage_error
+import numpy as np
 
-# Import the data
-data = pd.read_csv("../California_Houses.csv")
-
-# Call the function to plot the graph
 if __name__ == "__main__":
-    print('Explaroatory Data Analysis', "\n")
+    # Import the data
+    data = pd.read_csv("../California_Houses.csv")
+
+    print('Exploratory Data Analysis', "\n")
     data_analysis = eda.EDA(data)
     data_analysis.display_statistics()
     data_analysis.rename_column()
@@ -18,6 +17,7 @@ if __name__ == "__main__":
     data_analysis.display_boxplots()
     data_analysis.display_grouped_counts_median_income()
     data_analysis.display_grouped_median_house_value()
+    data_analysis.remove_outliers()
     data_analysis.display_density_plots()
     data_analysis.display_correlation_matrix()
     data_analysis.apply_pca()
@@ -36,18 +36,17 @@ if __name__ == "__main__":
 
     print("\n", 'Linear Regression', "\n")
     linear_model = modelling.train_linear_regression(x_train_scaled, y_train)
-    mse_lr, r2_lr, y_pred_lr = modelling.evaluate_model(linear_model, x_test_scaled, y_test)
-    modelling.summarize_regression_model(linear_model, x_train, x_train.columns)
-    modelling.statsmodels_summary(x_train_scaled, y_train)
-    mape_lr = modelling.calculate_mean_absolute_percentage_error(y_test, y_pred_lr)
-    modelling.plot_residuals(y_test, y_pred_lr)
-    aic_lr, bic_lr =  modelling.calculate_aic_bic(y_test, y_pred_lr, x_train_scaled, 'Linear Regression')
+    y_pred_lr = linear_model.predict(x_test_scaled)
+    rmse_lr, mse_lr, mae_lr, aic_lr, bic_lr = modelling.evaluate_model('Linear Regression', linear_model, x_test_scaled, y_test, x_train_scaled, y_train, y_pred_lr)
+    modelling.display_qq_plot_residuals(y_test, y_pred_lr)
 
     print("\n", 'Random Forest', "\n")
     random_forest_model = modelling.train_random_forest_regressor(x_train_scaled, y_train)
-    mse_rf, r2_rf, y_pred_rf = modelling.evaluate_model(random_forest_model, x_test_scaled, y_test)
-    mape_rf = modelling.calculate_mean_absolute_percentage_error(y_test, y_pred_rf)
-    aic_rf, bic_rf = modelling.calculate_aic_bic(y_test, y_pred_rf, x_train_scaled, 'Random Forest')
+    y_pred_rf = random_forest_model.predict(x_test_scaled)
+    all_tree_predictions = np.array([tree.predict(x_test_scaled) for tree in random_forest_model.estimators_])
+    rmse_rf, mse_rf, mae_rf, aic_rf, bic_rf = modelling.evaluate_model('Random Forest', random_forest_model, x_test_scaled, y_test, x_train_scaled, y_train, y_pred_rf)
 
-    modelling.plot_model_comparison(mse_lr, mse_rf, mape_lr, mape_rf)
-
+    print("\n", 'Evaluation', "\n")
+    modelling.plot_model_comparison(rmse_lr, rmse_rf ,mse_lr, mse_rf, mae_lr, mae_rf, aic_lr, aic_rf, bic_lr, bic_rf)
+    modelling.compute_confidence_interval('Linear Regression', y_pred_lr, y_test)
+    modelling.compute_confidence_interval('Random Forest', all_tree_predictions, y_test)
