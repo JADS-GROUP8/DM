@@ -7,7 +7,6 @@ from sklearn.decomposition import PCA
 import geopandas as gpd
 from geodatasets import get_path
 
-
 class EDA:
 
     def __init__(self, data):
@@ -17,8 +16,8 @@ class EDA:
         print("Data Statistics:", "\n")
         print(self.data.describe().transpose(), "\n")
     
-    def rename_column(self):
-        self.data.rename(columns={'Distance_to_LA':'Distance_to_LosAngeles'}, inplace=True) 
+    def rename_column(self, column='Distance_to_LA', new_column='Distance_to_LosAngeles'):
+        self.data.rename(columns={column:new_column}, inplace=True) 
 
     def display_null_values(self):
         print("Null Values in Data:", "\n")
@@ -55,6 +54,10 @@ class EDA:
 
     def display_grouped_median_house_value(self):
         print(self.data.groupby("Median_House_Value").count().sort_values(by="Median_House_Value", ascending=False)["Median_Income"].rename("Count of rows"))
+
+    def remove_outliers(self):
+        # Remove rows where Median_House_Value is 500001.0 or Median_Income is 15.0001
+        self.data = self.data[(self.data["Median_House_Value"] != 500001.0) & (self.data["Median_Income"] != 15.0001)]
 
     def display_density_plots(self):
          # Plot density plots for all variables in a single figure

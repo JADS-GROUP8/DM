@@ -1,14 +1,12 @@
-import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error, r2_score
+from sklearn.metrics import root_mean_squared_error, mean_absolute_error
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 
 class Modelling:
 
@@ -28,50 +26,53 @@ class Modelling:
         return X_train_scaled, X_test_scaled
     
     def train_linear_regression(self, X_train_scaled, y_train):
-        model = LinearRegression()
-        model.fit(X_train_scaled, y_train)
-        return model
+        lr_model = LinearRegression()
+        lr_model.fit(X_train_scaled, y_train)
+        return lr_model
     
-    def evaluate_model(self, model, X_test_scaled, y_test):
-        y_pred = model.predict(X_test_scaled)
-        mse = mean_squared_error(y_test, y_pred)
-        r2 = r2_score(y_test, y_pred)
-        print(f"Mean Squared Error: {mse}")
-        print(f"R-squared: {r2}")
-        return mse, r2, y_pred
-    
-    def summarize_regression_model(self, model, X, feature_names):
-        print("Linear Regression Model Summary")
+    def evaluate_model(self, model_name, model, X_test_scaled, y_test, X_train_scaled, y_train, y_pred):
+        print(model_name)
         print("--------------------------------")
-        print(f"Intercept: {model.intercept_}")
-        print("Coefficients:")
-        for feature, coef in zip(feature_names, model.coef_):
-            print(f"  {feature}: {coef}")
+        # Calculate RMSE
+        rmse = root_mean_squared_error(y_test, y_pred)
+        print(f'Root Mean Squared Error (RMSE): {rmse}')
 
-    def statsmodels_summary(self, X_train_scaled, y_train):
-        X_train_const = sm.add_constant(X_train_scaled)
-        model_sm = sm.OLS(y_train, X_train_const).fit()
-        print(model_sm.summary())
-        return model_sm
+        # Calculate RMSE on training set too to account for overfitting 
+        rmse_train = root_mean_squared_error(y_train, model.predict(X_train_scaled))
+        print(f'Root Mean Squared Error (RMSE) on training set: {rmse_train}')
+
+        # Calculate MSE (We square the RMSE as mse func is deprecated)
+        mse = rmse**2
+        print(f'Mean Squared Error (MSE): {mse}')
+
+        # Calculate MAE
+        mae = mean_absolute_error(y_test, y_pred)
+        print(f'Mean Absolute Error (MAE): {mae}')
+
+        # Calculate AIC and BIC
+        n = len(y_test)
+        p = X_test_scaled.shape[1]
+        aic = n * np.log(mse) + 2 * p
+        bic = n * np.log(mse) + p * np.log(n)
+
+        print(f'Akaike Information Criterion (AIC): {aic}')
+        print(f'Bayesian Information Criterion (BIC): {bic}')
+        return rmse, mse, mae, aic, bic
     
-    def plot_residuals(self, y_test, y_pred):
-        residuals = y_test - y_pred
+    def display_qq_plot_residuals(self, y_test, y_pred):
+        plt.figure(figsize=(12, 6)) 
 
-        plt.figure(figsize=(15, 6))
-
-        # Residuals vs Fitted
+        # Generate QQ plot
         plt.subplot(1, 2, 1)
-        plt.scatter(y_pred, residuals, alpha=0.5)
-        plt.axhline(y=0, color='r', linestyle='--')
+        sm.qqplot(y_test - y_pred, line='s', ax=plt.gca())
+        plt.title('QQ Plot')
+
+        # Generate residuals vs fitted values plot
+        plt.subplot(1, 2, 2)
+        sns.regplot(x=y_pred, y=y_test - y_pred, lowess=True, line_kws={'color': 'red', 'lw': 1}, scatter_kws={'alpha': 0.5})
         plt.xlabel('Fitted values')
         plt.ylabel('Residuals')
-        plt.title('Residuals vs Fitted')
-
-        # Distribution of Residuals
-        plt.subplot(1, 2, 2)
-        sns.histplot(residuals, kde=True)
-        plt.xlabel('Residuals')
-        plt.title('Distribution of Residuals')
+        plt.title('Residuals vs Fitted Values')
 
         plt.tight_layout()
         plt.show()
@@ -80,46 +81,46 @@ class Modelling:
         rf_model = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state)
         rf_model.fit(X_train_scaled, y_train)
         return rf_model
-
-    def calculate_aic_bic(self, y_test, y_pred, X_test_scaled, model_name):
-        n = len(y_test)
-        mse = mean_squared_error(y_test, y_pred)
-        p = X_test_scaled.shape[1]  # Number of features
-
-        # Calculate AIC
-        aic = n * np.log(mse) + 2 * p
-
-        # Calculate BIC
-        bic = n * np.log(mse) + p * np.log(n)
-
-        print(f"Model: {model_name}")
-        print(f"AIC: {aic}")
-        print(f"BIC: {bic}")
-        return aic, bic
     
-    def calculate_mean_absolute_percentage_error(self, y_true, y_pred):
-        mape = mean_absolute_percentage_error(y_true, y_pred)
-        print(f"Mean Absolute Percentage Error: {mape}")
-        return mape
-    
-    def plot_model_comparison(self, mse_lr, mse_rf, mape_lr, mape_rf):
+    def plot_model_comparison(self, rmse_lr, rmse_rf ,mse_lr, mse_rf, mae_lr, mae_rf, aic_lr, aic_rf, bic_lr, bic_rf):
+        # Define the models and their metrics
         models = ['Linear Regression', 'Random Forest Regression']
-        rmse_values = [np.sqrt(mse_lr), np.sqrt(mse_rf)]
-        mape_values = [mape_lr, mape_rf]
+        metrics = ['RMSE', 'MSE', 'MAE', 'AIC', 'BIC']
 
-        plt.figure(figsize=(12, 6))
+        # Define the values for each metric
+        rmse_values = [rmse_lr, rmse_rf]
+        mse_values = [mse_lr, mse_rf]
+        mae_values = [mae_lr, mae_rf]
+        aic_values = [aic_lr, aic_rf]
+        bic_values = [bic_lr, bic_rf]
 
-        # Plot RMSE
-        plt.subplot(1, 2, 1)
-        plt.bar(models, rmse_values, color=['cyan', 'salmon'])
-        plt.ylabel('RMSE')
-        plt.title('RMSE Comparison for Models')
+        # Create a dictionary to hold the metric values
+        metric_values = {
+            'RMSE': rmse_values,
+            'MSE': mse_values,
+            'MAE': mae_values,
+            'AIC': aic_values,
+            'BIC': bic_values
+        }
 
-        # Plot MAPE
-        plt.subplot(1, 2, 2)
-        plt.bar(models, mape_values, color=['cyan', 'salmon'])
-        plt.ylabel('MAPE')
-        plt.title('MAPE Comparison for Models')
+        # Plot each metric
+        plt.figure(figsize=(12, 10))
+
+        for i, metric in enumerate(metrics):
+            plt.subplot(3, 2, i + 1)
+            plt.bar(models, metric_values[metric], color=['lightcoral', 'lightblue'])
+            plt.ylabel(metric)
+            plt.title(f'{metric} Comparison for Models')
 
         plt.tight_layout()
         plt.show()
+
+    def compute_confidence_interval(self, model_name, predictions, y_test):
+        # Calculate the prediction interval (e.g., 95% prediction interval)
+        lower_bound = np.percentile(predictions, 2.5, axis=0)
+        upper_bound = np.percentile(predictions, 97.5, axis=0)
+
+        # Calculate the percentage of the actual test data that falls within the interval
+        within_interval = np.mean((y_test >= lower_bound) & (y_test <= upper_bound)) * 100
+
+        print(f'Percentage of test data within the 95% prediction interval ({model_name}): {within_interval:.2f}%')
