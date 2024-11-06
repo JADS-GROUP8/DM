@@ -4,3 +4,4 @@ seaborn
 plotly
 pandas
 inflection
+scikit-learn
